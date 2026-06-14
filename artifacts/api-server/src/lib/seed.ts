@@ -96,7 +96,7 @@ const MONITORING_SNIPPETS = [
 
 export async function seedIfEmpty(): Promise<void> {
   const [{ count }] = await db
-    .select({ count: sql<number>`count(*)::int` })
+    .select({ count: sql<number>`count(*)` })
     .from(courses);
   if (count > 0) {
     logger.info({ courses: count }, "Seed skipped — data already present");
@@ -137,7 +137,7 @@ export async function seedIfEmpty(): Promise<void> {
         teacherId: teacher.id,
         termLabel: TERM_LABEL,
         termStartDate: t.course.termStartDate,
-        teachingWeekdays: WEEKDAYS,
+        teachingWeekdays: JSON.stringify(WEEKDAYS),
       })
       .returning();
 

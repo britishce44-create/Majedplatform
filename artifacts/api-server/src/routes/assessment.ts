@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
 import {
   db,
-  courses,
+  courses as coursesTable,
   teachers,
   students,
   parents,
@@ -11,7 +11,6 @@ import {
   assessmentScores,
   reports,
   tasks,
-  type Course,
 } from "@workspace/db";
 import {
   requireAuth,
@@ -23,7 +22,21 @@ import {
 import { generateReportsForSheet } from "../lib/reports";
 import { deliverReport } from "../lib/google";
 
+type CourseRow = Omit<typeof coursesTable.$inferSelect, "teachingWeekdays"> & {
+  teachingWeekdays: number[];
+};
+
 const router: IRouter = Router();
+
+function parseCourse(c: typeof coursesTable.$inferSelect): CourseRow {
+  return {
+    ...c,
+    teachingWeekdays:
+      typeof c.teachingWeekdays === "string"
+        ? JSON.parse(c.teachingWeekdays)
+        : c.teachingWeekdays,
+  };
+}
 
 async function canAccessCourse(
   user: AuthUser,
@@ -38,13 +51,13 @@ async function canAccessCourse(
 // List courses the user may assess.
 router.get("/v1/assessment/courses", requireAuth, async (req, res) => {
   const user = req.user!;
-  let rows: Course[] = [];
-  if (isStaff(user)) rows = await db.select().from(courses);
+  let rows: (typeof coursesTable.$inferSelect)[] = [];
+  if (isStaff(user)) rows = await db.select().from(coursesTable);
   else if (user.role === "teacher" && user.teacherId)
     rows = await db
       .select()
-      .from(courses)
-      .where(eq(courses.teacherId, user.teacherId));
+      .from(coursesTable)
+      .where(eq(coursesTable.teacherId, user.teacherId));
   else rows = [];
 
   const result = [];
@@ -59,10 +72,10 @@ router.get("/v1/assessment/courses", requireAuth, async (req, res) => {
         )[0]
       : null;
     const [{ count }] = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(students)
       .where(eq(students.courseId, c.id));
-    result.push({ ...c, teacherName: teacher?.name ?? null, studentCount: count });
+    result.push({ ...parseCourse(c), teacherName: teacher?.name ?? null, studentCount: count });
   }
   return res.json({ courses: result });
 });
@@ -91,7 +104,7 @@ router.post(
         .status(400)
         .json({ message: "labelEn and labelAr are required" });
     const [{ max }] = await db
-      .select({ max: sql<number>`coalesce(max(order_index), -1)::int` })
+      .select({ max: sql<number>`coalesce(max(order_index), -1)` })
       .from(criteria);
     const [row] = await db
       .insert(criteria)
@@ -156,8 +169,8 @@ router.get("/v1/assessment/sheet/:id", requireAuth, async (req, res) => {
 
   const [course] = await db
     .select()
-    .from(courses)
-    .where(eq(courses.id, sheet.courseId))
+    .from(coursesTable)
+    .where(eq(coursesTable.id, sheet.courseId))
     .limit(1);
   const teacher = course?.teacherId
     ? (
@@ -209,7 +222,7 @@ router.get("/v1/assessment/sheet/:id", requireAuth, async (req, res) => {
 
   return res.json({
     sheet,
-    course: { ...course, teacherName: teacher?.name ?? null },
+    course: course ? parseCourse(course) : null,
     criteria: crit,
     students: studentList,
     scores,

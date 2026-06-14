@@ -1,74 +1,67 @@
 import {
-  pgTable,
-  serial,
+  sqliteTable,
   text,
   integer,
-  timestamp,
-  boolean,
   unique,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/sqlite-core";
 
-// Tasks Manager — assessment reminders and to-dos per teacher/admin.
-export const tasks = pgTable(
+export const tasks = sqliteTable(
   "tasks",
   {
-    id: serial("id").primaryKey(),
-    title: text("title").notNull(),
-    description: text("description"),
-    assigneeType: text("assignee_type").$type<"teacher" | "admin">().notNull(),
-    assigneeId: integer("assignee_id"), // teacherId, or null for admin
-    courseId: integer("course_id"),
-    sheetId: integer("sheet_id"),
-    dueDate: text("due_date"), // ISO 'YYYY-MM-DD'
-    type: text("type").notNull().default("assessment_reminder"),
-    status: text("status").$type<"pending" | "done">().notNull().default("pending"),
-    dedupeKey: text("dedupe_key"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+    title: text().notNull(),
+    description: text(),
+    assigneeType: text().$type<"teacher" | "admin">().notNull(),
+    assigneeId: integer({ mode: "number" }),
+    courseId: integer({ mode: "number" }),
+    sheetId: integer({ mode: "number" }),
+    dueDate: text(),
+    type: text().notNull().default("assessment_reminder"),
+    status: text().$type<"pending" | "done">().notNull().default("pending"),
+    dedupeKey: text(),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull().$default(() => Date.now()),
   },
-  (t) => [unique("uq_task_dedupe").on(t.dedupeKey)],
+  (t) => [unique().on(t.dedupeKey)],
 );
 
-// In-app notifications.
-export const notifications = pgTable("notifications", {
-  id: serial("id").primaryKey(),
-  audienceRole: text("audience_role"), // 'teacher' | 'admin' | 'parent' | 'all'
-  recipientEmail: text("recipient_email"),
-  title: text("title").notNull(),
-  body: text("body"),
-  category: text("category").notNull().default("academic"),
-  icon: text("icon"),
-  read: boolean("read").notNull().default(false),
-  dedupeKey: text("dedupe_key"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const notifications = sqliteTable("notifications", {
+  id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+  audienceRole: text(),
+  recipientEmail: text(),
+  title: text().notNull(),
+  body: text(),
+  category: text().notNull().default("academic"),
+  icon: text(),
+  read: integer({ mode: "boolean" }).notNull().default(false),
+  dedupeKey: text(),
+  createdAt: integer({ mode: "timestamp_ms" }).notNull().$default(() => Date.now()),
 });
 
-// Calendar events — term milestones (day 5 / day 17), reminders, due dates.
-export const calendarEvents = pgTable(
+export const calendarEvents = sqliteTable(
   "calendar_events",
   {
-    id: serial("id").primaryKey(),
-    title: text("title").notNull(),
-    description: text("description"),
-    date: text("date").notNull(), // ISO 'YYYY-MM-DD'
-    type: text("type").$type<"milestone" | "reminder" | "due">().notNull(),
-    courseId: integer("course_id"),
-    googleEventId: text("google_event_id"),
-    dedupeKey: text("dedupe_key"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+    title: text().notNull(),
+    description: text(),
+    date: text().notNull(),
+    type: text().$type<"milestone" | "reminder" | "due">().notNull(),
+    courseId: integer({ mode: "number" }),
+    googleEventId: text(),
+    dedupeKey: text(),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull().$default(() => Date.now()),
   },
-  (t) => [unique("uq_event_dedupe").on(t.dedupeKey)],
+  (t) => [unique().on(t.dedupeKey)],
 );
 
-// CE4 Messenger system messages.
-export const messages = pgTable("messages", {
-  id: serial("id").primaryKey(),
-  threadKey: text("thread_key").notNull(), // recipient email or 'system'
-  fromName: text("from_name").notNull().default("CE4 Assessment Bot"),
-  toEmail: text("to_email"),
-  toRole: text("to_role"),
-  body: text("body").notNull(),
-  dedupeKey: text("dedupe_key"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const messages = sqliteTable("messages", {
+  id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+  threadKey: text().notNull(),
+  fromName: text().notNull().default("CE4 Assessment Bot"),
+  toEmail: text(),
+  toRole: text(),
+  body: text().notNull(),
+  dedupeKey: text(),
+  createdAt: integer({ mode: "timestamp_ms" }).notNull().$default(() => Date.now()),
 });
 
 export type Task = typeof tasks.$inferSelect;

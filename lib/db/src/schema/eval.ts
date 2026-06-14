@@ -1,119 +1,85 @@
 import {
-  pgTable,
-  serial,
+  sqliteTable,
   text,
   integer,
-  timestamp,
-  boolean,
   unique,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/sqlite-core";
 
-// Configurable evaluation tables the Academic Room can create / edit / expand.
-//  - layout 'columns' : one row per subject (teacher); criteria are columns,
-//    each scored 1-maxScore (or free-text for kind='text', e.g. Recommendations).
-//  - layout 'weekly'  : criteria are rows (evaluation points) scored across the
-//    6 teaching days (Sat..Thu) with a per-day duration in eval_day_meta.
-export const evalTemplates = pgTable("eval_templates", {
-  id: serial("id").primaryKey(),
-  key: text("key").notNull().unique(),
-  name: text("name").notNull(),
-  nameAr: text("name_ar"),
-  subjectType: text("subject_type")
-    .$type<"teacher" | "student">()
-    .notNull()
-    .default("teacher"),
-  layout: text("layout")
-    .$type<"columns" | "weekly">()
-    .notNull()
-    .default("columns"),
-  termLabel: text("term_label"),
-  description: text("description"),
-  orderIndex: integer("order_index").notNull().default(0),
-  active: boolean("active").notNull().default(true),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const evalTemplates = sqliteTable("eval_templates", {
+  id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+  key: text().notNull().unique(),
+  name: text().notNull(),
+  nameAr: text(),
+  subjectType: text().$type<"teacher" | "student">().notNull().default("teacher"),
+  layout: text().$type<"columns" | "weekly">().notNull().default("columns"),
+  termLabel: text(),
+  description: text(),
+  orderIndex: integer({ mode: "number" }).notNull().default(0),
+  active: integer({ mode: "boolean" }).notNull().default(true),
+  createdAt: integer({ mode: "timestamp_ms" }).notNull().$default(() => Date.now()),
 });
 
-// Columns (layout 'columns') or evaluation points (layout 'weekly').
-export const evalCriteria = pgTable("eval_criteria", {
-  id: serial("id").primaryKey(),
-  templateId: integer("template_id").notNull(),
-  key: text("key").notNull(),
-  labelEn: text("label_en").notNull(),
-  labelAr: text("label_ar"),
-  kind: text("kind").$type<"score" | "text">().notNull().default("score"),
-  maxScore: integer("max_score").notNull().default(5),
-  orderIndex: integer("order_index").notNull().default(0),
-  active: boolean("active").notNull().default(true),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const evalCriteria = sqliteTable("eval_criteria", {
+  id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+  templateId: integer({ mode: "number" }).notNull(),
+  key: text().notNull(),
+  labelEn: text().notNull(),
+  labelAr: text(),
+  kind: text().$type<"score" | "text">().notNull().default("score"),
+  maxScore: integer({ mode: "number" }).notNull().default(5),
+  orderIndex: integer({ mode: "number" }).notNull().default(0),
+  active: integer({ mode: "boolean" }).notNull().default(true),
+  createdAt: integer({ mode: "timestamp_ms" }).notNull().$default(() => Date.now()),
 });
 
-// One sheet per template per term per week (week blank for non-weekly tables).
-export const evalSheets = pgTable(
+export const evalSheets = sqliteTable(
   "eval_sheets",
   {
-    id: serial("id").primaryKey(),
-    templateId: integer("template_id").notNull(),
-    termLabel: text("term_label").notNull(),
-    weekLabel: text("week_label").notNull().default(""),
-    dueDate: text("due_date"), // ISO 'YYYY-MM-DD'
-    status: text("status")
-      .$type<"open" | "submitted" | "locked">()
-      .notNull()
-      .default("open"),
-    assessorId: integer("assessor_id"),
-    submittedAt: timestamp("submitted_at"),
-    reportsGeneratedAt: timestamp("reports_generated_at"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
+    id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+    templateId: integer({ mode: "number" }).notNull(),
+    termLabel: text().notNull(),
+    weekLabel: text().notNull().default(""),
+    dueDate: text(),
+    status: text().$type<"open" | "submitted" | "locked">().notNull().default("open"),
+    assessorId: integer({ mode: "number" }),
+    submittedAt: integer({ mode: "timestamp_ms" }),
+    reportsGeneratedAt: integer({ mode: "timestamp_ms" }),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull().$default(() => Date.now()),
   },
   (t) => [
-    unique("uq_eval_sheet_tpl_term_week").on(
-      t.templateId,
-      t.termLabel,
-      t.weekLabel,
-    ),
+    unique().on(t.templateId, t.termLabel, t.weekLabel),
   ],
 );
 
-// day: 0 for 'columns' layout; getUTCDay() for 'weekly' (Sat=6,Sun=0..Thu=4).
-export const evalScores = pgTable(
+export const evalScores = sqliteTable(
   "eval_scores",
   {
-    id: serial("id").primaryKey(),
-    sheetId: integer("sheet_id").notNull(),
-    teacherId: integer("teacher_id").notNull(),
-    criterionId: integer("criterion_id").notNull(),
-    day: integer("day").notNull().default(0),
-    score: integer("score"), // null = not yet scored
-    note: text("note"), // free text for kind='text' criteria
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+    sheetId: integer({ mode: "number" }).notNull(),
+    teacherId: integer({ mode: "number" }).notNull(),
+    criterionId: integer({ mode: "number" }).notNull(),
+    day: integer({ mode: "number" }).notNull().default(0),
+    score: integer({ mode: "number" }),
+    note: text(),
+    updatedAt: integer({ mode: "timestamp_ms" }).notNull().$default(() => Date.now()),
   },
   (t) => [
-    unique("uq_eval_score_sheet_teacher_crit_day").on(
-      t.sheetId,
-      t.teacherId,
-      t.criterionId,
-      t.day,
-    ),
+    unique().on(t.sheetId, t.teacherId, t.criterionId, t.day),
   ],
 );
 
-// Per teacher / per day lesson duration (minutes) for the weekly table.
-export const evalDayMeta = pgTable(
+export const evalDayMeta = sqliteTable(
   "eval_day_meta",
   {
-    id: serial("id").primaryKey(),
-    sheetId: integer("sheet_id").notNull(),
-    teacherId: integer("teacher_id").notNull(),
-    day: integer("day").notNull(),
-    minutes: integer("minutes"),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+    sheetId: integer({ mode: "number" }).notNull(),
+    teacherId: integer({ mode: "number" }).notNull(),
+    day: integer({ mode: "number" }).notNull(),
+    minutes: integer({ mode: "number" }),
+    updatedAt: integer({ mode: "timestamp_ms" }).notNull().$default(() => Date.now()),
   },
   (t) => [
-    unique("uq_eval_daymeta_sheet_teacher_day").on(
-      t.sheetId,
-      t.teacherId,
-      t.day,
-    ),
+    unique().on(t.sheetId, t.teacherId, t.day),
   ],
 );
 

@@ -1,29 +1,29 @@
-import { pgTable, serial, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 
-export const teachers = pgTable("teachers", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull(),
-  phone: text("phone"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const teachers = sqliteTable("teachers", {
+  id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+  name: text().notNull(),
+  email: text().notNull(),
+  phone: text(),
+  createdAt: integer({ mode: "timestamp_ms" }).notNull().$default(() => Date.now()),
 });
 
-export const parents = pgTable("parents", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull(),
-  phone: text("phone"),
-  locale: text("locale").notNull().default("ar"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const parents = sqliteTable("parents", {
+  id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+  name: text().notNull(),
+  email: text().notNull(),
+  phone: text(),
+  locale: text().notNull().default("ar"),
+  createdAt: integer({ mode: "timestamp_ms" }).notNull().$default(() => Date.now()),
 });
 
-export const students = pgTable("students", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  courseId: integer("course_id"),
-  parentId: integer("parent_id"),
-  level: text("level"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const students = sqliteTable("students", {
+  id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+  name: text().notNull(),
+  courseId: integer({ mode: "number" }),
+  parentId: integer({ mode: "number" }),
+  level: text(),
+  createdAt: integer({ mode: "timestamp_ms" }).notNull().$default(() => Date.now()),
 });
 
 export type Teacher = typeof teachers.$inferSelect;
