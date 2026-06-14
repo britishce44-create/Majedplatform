@@ -172,6 +172,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
+      better-sqlite3:
+        specifier: ^11.9.1
+        version: 11.10.0
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
